@@ -2,61 +2,75 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_HUB_CREDS = credentials('dockerhub-creds') // Jenkins credentials ID
-        IMAGE_NAME = "yourdockerhubusername/mindbloom-app"
+        DOCKER_CREDENTIALS = credentials('dockerhub-creds')  // Jenkins DockerHub creds ID
+        IMAGE_NAME = "karvy192003/mindbloom-app"
     }
 
     stages {
 
-        stage('📦 Clone Repo') {
+        stage('📁 Clone Repo') {
             steps {
-                git 'https://github.com/your-username/mindbloom.git'
+                git 'https://github.com/Karvy192003/karviii.git'
             }
         }
 
-        stage('✅ Install Dependencies') {
+        stage('📦 Setup & Install Requirements') {
             steps {
-                sh 'pip install -r requirements.txt'
+                dir('main') {
+                    sh 'pip install --upgrade pip'
+                    sh 'pip install -r requirements.txt'
+                }
             }
         }
 
-        stage('🧪 Run Pytest') {
+        stage('🧪 Run Tests') {
             steps {
-                sh 'pytest tests/'
+                dir('main') {
+                    sh 'pytest tests/'
+                }
             }
         }
 
         stage('🐳 Build Docker Image') {
             steps {
-                sh 'docker build -t $IMAGE_NAME .'
+                dir('main') {
+                    sh 'docker build -t $IMAGE_NAME .'
+                }
             }
         }
 
-        stage('🔐 Docker Login') {
+        stage('🔐 Login to Docker Hub') {
             steps {
-                sh "echo $DOCKER_HUB_CREDS_PSW | docker login -u $DOCKER_HUB_CREDS_USR --password-stdin"
+                sh "echo $DOCKER_CREDENTIALS_PSW | docker login -u $DOCKER_CREDENTIALS_USR --password-stdin"
             }
         }
 
-        stage('📤 Push Image to Docker Hub') {
+        stage('📤 Push Docker Image') {
             steps {
-                sh 'docker push $IMAGE_NAME'
+                dir('main') {
+                    sh 'docker push $IMAGE_NAME'
+                }
             }
         }
 
-        stage('🚀 Deploy (Run Locally)') {
+        stage('🚀 Run Container') {
             steps {
-                sh 'docker run -d -p 7860:7860 $IMAGE_NAME'
+                // Optional: Stop existing container if running
+                sh 'docker stop mindbloom || true'
+                sh 'docker rm mindbloom || true'
+
+                // Run new container
+                sh 'docker run -d --name mindbloom -p 7860:7860 $IMAGE_NAME'
             }
         }
     }
 
     post {
-        failure {
-            echo '❌ Build Failed!'
-        }
         success {
-            echo '✅ Successfully Deployed MindBloom!'
+            echo '✅ MindBloom deployed successfully!'
+        }
+        failure {
+            echo '❌ Build failed. Please check logs.'
         }
     }
 }
